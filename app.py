@@ -87,5 +87,10 @@ def upload_file():
 
     return jsonify({"selected_candidates": selected_candidates, "status": "success"}), 200
 
+@app.route('/', methods=['GET'])
+def welcomePage():
+    test = "The server is up and running"
+    return test
+
 if __name__ == '__main__':
     app.run(debug=True)
