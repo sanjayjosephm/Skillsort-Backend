@@ -15,21 +15,20 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 REQUIRED_SKILLS = [
-    "python", "java", "spring boot", "sql", "machine learning", "ml", 
+    "python", "java", "spring boot", "sql", "machine learning", "ml",
     "deep learning", "react", "node.js", "javascript", "c++", "backend", "frontend"
 ]
 
-def extract_text_from_pdf(pdf_path):
-    """Extract text from a PDF file and normalize it."""
+def extract_text_from_pdf(pdf_file):
+    """Extract text from an uploaded PDF file."""
     text = ""
     try:
-        with open(pdf_path, "rb") as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                text += page.extract_text() + " "
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        for page in pdf_reader.pages:
+            text += page.extract_text() + " "
     except Exception as e:
-        print(f"Error reading {pdf_path}: {e}")
-    
+        print(f"Error reading PDF: {e}")
+
     return text.lower().strip()
 
 def extract_contact_and_year(text):
@@ -39,31 +38,46 @@ def extract_contact_and_year(text):
 
     contact = contact_match.group() if contact_match else "N/A"
     year = year_match.group() if year_match else "Unknown"
-    
+
     return contact, year
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
-    """Filter candidates based on skill match and recruiter preference for number of selections."""
+    """Handle file uploads and filter candidates based on skills."""
     
-    data = request.get_json()
-    top_n = data.get("top_n", 5)  # Default to 5 if not provided
+    # Get JSON data from form field
+    json_data = request.form.get("data")
+    if not json_data:
+        return jsonify({"error": "Missing 'data' field"}), 400
+    
+    try:
+        data = eval(json_data)  # Convert string to dict
+        top_n = data.get("top_n", 5)  # Default to 5 if not provided
+    except Exception as e:
+        return jsonify({"error": "Invalid JSON format", "details": str(e)}), 400
+
+    if "resumes" not in request.files:
+        return jsonify({"error": "No resumes uploaded"}), 400
 
     candidate_data = []
-    
-    # Process all resumes in the uploads folder
-    for filename in os.listdir(UPLOAD_FOLDER):
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-        resume_text = extract_text_from_pdf(file_path)
-        contact, year = extract_contact_and_year(resume_text)
+    # Process uploaded files
+    for file in request.files.getlist("resumes"):
+        if file.filename.endswith(".pdf"):
+            resume_text = extract_text_from_pdf(file)
+            contact, year = extract_contact_and_year(resume_text)
 
-        candidate_data.append({
-            "name": filename.replace(".pdf", ""),
-            "text": resume_text,
-            "contact": contact,
+            candidate_data.append({
+                "name": file.filename.replace(".pdf", ""),
+                "text": resume_text,
+                "contact": contact,
+                "year": year
+            })
+        else:
+            return jsonify({"error": f"Invalid file format: {file.filename}"}), 400
 
-        })
+    if not candidate_data:
+        return jsonify({"error": "No valid resumes processed"}), 400
 
     # Convert skills and resumes into vectors using TF-IDF
     all_texts = [data["text"] for data in candidate_data]
@@ -89,8 +103,7 @@ def upload_file():
 
 @app.route('/', methods=['GET'])
 def welcomePage():
-    test = "The server is up and running"
-    return test
+    return "The server is up and running"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Get port from environment variable or default to 5000
