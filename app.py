@@ -16,10 +16,11 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-REQUIRED_SKILLS = [
-    "python", "java", "spring boot", "sql", "machine learning", "ml",
-    "deep learning", "react", "node.js", "javascript", "c++", "backend", "frontend"
-]
+REQUIRED_SKILLS = []
+# REQUIRED_SKILLS = [
+#     "python", "java", "spring boot", "sql", "machine learning", "ml",
+#     "deep learning", "react", "node.js", "javascript", "c++", "backend", "frontend"
+# ]
 
 def extract_text_from_pdf(pdf_file):
     """Extract text from an uploaded PDF file."""
@@ -46,7 +47,7 @@ def extract_contact_and_year(text):
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
     """Handle file uploads and filter candidates based on skills."""
-    
+
     # Get JSON data from form field
     json_data = request.form.get("data")
     if not json_data:
@@ -55,6 +56,8 @@ def upload_file():
     try:
         data = eval(json_data)  # Convert string to dict
         top_n = data.get("top_n", 5)  # Default to 5 if not provided
+        REQUIRED_SKILLS = data.get("required_skills")
+        
     except Exception as e:
         return jsonify({"error": "Invalid JSON format", "details": str(e)}), 400
 
